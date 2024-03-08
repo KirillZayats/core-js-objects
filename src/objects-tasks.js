@@ -221,8 +221,8 @@ function Rectangle(width, height) {
  *    [1,2,3]   =>  '[1,2,3]'
  *    { width: 10, height : 20 } => '{"height":10,"width":20}'
  */
-function getJSON(/* obj */) {
-  throw new Error('Not implemented');
+function getJSON(obj) {
+  return JSON.stringify(obj);
 }
 
 /**
@@ -236,8 +236,10 @@ function getJSON(/* obj */) {
  *    const r = fromJSON(Circle.prototype, '{"radius":10}');
  *
  */
-function fromJSON(/* proto, json */) {
-  throw new Error('Not implemented');
+function fromJSON(proto, json) {
+  const newObj = Object.create(proto);
+  Object.assign(newObj, JSON.parse(json));
+  return newObj;
 }
 
 /**
@@ -266,8 +268,16 @@ function fromJSON(/* proto, json */) {
  *      { country: 'Russia',  city: 'Saint Petersburg' }
  *    ]
  */
-function sortCitiesArray(/* arr */) {
-  throw new Error('Not implemented');
+function sortCitiesArray(arr) {
+  arr.sort((x1, x2) => {
+    if (x1.country < x2.country) return -1;
+    if (x1.country > x2.country) return 1;
+    if (x1.city < x2.city) return -1;
+    if (x1.city > x2.city) return 1;
+    return 0;
+  });
+
+  return arr;
 }
 
 /**
@@ -300,8 +310,21 @@ function sortCitiesArray(/* arr */) {
  *    "Poland" => ["Lodz"]
  *   }
  */
-function group(/* array, keySelector, valueSelector */) {
-  throw new Error('Not implemented');
+function group(array, keySelector, valueSelector) {
+  const map = new Map();
+
+  array.forEach((item) => {
+    const key = keySelector(item);
+    const value = valueSelector(item);
+
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+
+    map.get(key).push(value);
+  });
+
+  return map;
 }
 
 /**
@@ -359,32 +382,117 @@ function group(/* array, keySelector, valueSelector */) {
  */
 
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  value: '',
+  isElement: false,
+  isId: false,
+  isPseudoElement: false,
+  history: [],
+
+  element(value) {
+    if (this.isElement) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+    if (this.history[this.history.length - 1] <= 0) {
+      throw new Error(
+        '"Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    const newObj = Object.create({});
+    Object.assign(newObj, this);
+    newObj.value += value;
+    newObj.isElement = true;
+    newObj.history.push(0);
+    return newObj;
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    if (this.isId) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+    if (this.history[this.history.length - 1] > 1) {
+      throw new Error(
+        '"Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    const newObj = Object.create({});
+    Object.assign(newObj, this);
+    newObj.value += `#${value}`;
+    newObj.isId = true;
+    newObj.history.push(1);
+    return newObj;
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    if (this.history[this.history.length - 1] > 2) {
+      throw new Error(
+        '"Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    const newObj = Object.create({});
+    Object.assign(newObj, this);
+    newObj.value += `.${value}`;
+    newObj.history.push(2);
+    return newObj;
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    if (this.history[this.history.length - 1] > 3) {
+      throw new Error(
+        '"Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    const newObj = Object.create({});
+    Object.assign(newObj, this);
+    newObj.value += `[${value}]`;
+    newObj.history.push(3);
+    return newObj;
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    if (this.history[this.history.length - 1] > 4) {
+      throw new Error(
+        '"Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    const newObj = Object.create({});
+    Object.assign(newObj, this);
+    newObj.value += `:${value}`;
+    newObj.history.push(4);
+    return newObj;
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    if (this.isPseudoElement) {
+      this.history.length = 0;
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+    const newObj = Object.create({});
+    Object.assign(newObj, this);
+    newObj.value += `::${value}`;
+    newObj.isPseudoElement = true;
+    newObj.history.push(5);
+    return newObj;
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selector1, combinator, selector2) {
+    const newObj = Object.create({});
+    Object.assign(newObj, this);
+    newObj.value = `${selector1.stringify()} ${combinator} ${selector2.stringify()}`;
+    return newObj;
+  },
+
+  stringify() {
+    this.isElement = false;
+    this.isId = false;
+    this.isPseudoElement = false;
+    this.history.length = 0;
+    return this.value;
   },
 };
 
